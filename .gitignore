@@ -1,0 +1,48 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+
+# Data files
+*.csv
+*.xlsx
+*.json
+*.parquet
+*.zip
+*.tar.gz
+
+# Data folders
+data/
+datasets/
+ieee-fraud-detection/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML models
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.onnx
+
+# Logs & temp
+*.log
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
