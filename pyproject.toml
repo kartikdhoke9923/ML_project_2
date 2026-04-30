@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.136.1",
     "imbalanced-learn>=0.14.1",
     "ipykernel>=7.2.0",
     "lightgbm>=4.6.0",
@@ -13,5 +14,6 @@ dependencies = [
     "pandas>=3.0.2",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
+    "uvicorn>=0.46.0",
     "xgboost>=3.2.0",
 ]
