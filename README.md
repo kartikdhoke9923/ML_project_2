@@ -3,7 +3,7 @@
 A real-time fraud detection system built on the [IEEE-CIS Fraud Detection dataset](https://www.kaggle.com/c/ieee-fraud-detection). Predicts whether a transaction is fraudulent using a LightGBM model deployed as a REST API with a Streamlit frontend.
 
 **Live Demo:** [ieee-cis-fraud-detection.streamlit.app](https://ieee-cis-fraud-detection.streamlit.app)  
-**API Docs:** [your-render-link.onrender.com/docs](https://your-render-link.onrender.com/docs)
+**API Docs:** [render-link](https://fraud-detection-api-ry7g.onrender.com/health)
 
 ---
 
@@ -55,12 +55,17 @@ Built interpretable features grouped into 8 categories:
 ### 3. Model Selection (`notebook.ipynb`)
 Compared four models on AUC-ROC:
 
-| Model | AUC |
-|---|---|
-| Logistic Regression | ~0.78 |
-| Random Forest | ~0.85 |
-| XGBoost | ~0.88 |
-| **LightGBM** | **~0.90** |
+| Model | AUC | F1 | Threshold |
+|---|---|---|---|
+| Logistic Regression | 0.8233 | 0.3077 | 0.62 |
+| Random Forest | 0.9026 | 0.5575 | 0.58 |
+| XGBoost | 0.9362 | 0.6462 | 0.28 |
+| **LightGBM** | **0.9405** | **0.6384** | **0.55** |
+
+LightGBM selected for highest AUC and strong F1 despite 
+the 3.5% fraud class imbalance. XGBoost was close on F1 
+(0.6462 vs 0.6384) but LightGBM was 4x faster to train 
+(26s vs 127s for RF).
 
 Applied SMOTE (sampling_strategy=0.3) to handle class imbalance. LightGBM selected as final model.
 
