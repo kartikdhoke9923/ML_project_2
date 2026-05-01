@@ -145,7 +145,7 @@ if page == "Single Prediction":
                 st.metric("Fraud Probability", f"{prob_pct}%")
             with r3:
                 tier = result["risk_tier"]
-                st.metric("risk_tier", f"{risk_color(tier)} {tier}")
+                st.metric("Risk Tier", f"{risk_color(tier)} {tier}")
             
 
             # Probability bar
