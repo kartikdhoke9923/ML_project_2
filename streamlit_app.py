@@ -78,16 +78,16 @@ if page == "Single Prediction":
         st.subheader("Transaction Details")
         amt     = st.number_input("Transaction Amount ($)", min_value=0.01, value=117.50, step=0.01)
         product = st.selectbox("Product Code", ["W", "H", "C", "S", "R"], index=0)
-        import random
-        KNOWN_CARDS = [4926, 13926, 7267, 9737, 3449]  # cards from your training set
-        card1 = random.choice(KNOWN_CARDS)
-        st.caption(f"Card ID: `{card1}` (auto-assigned)")
+        card1   = st.number_input("Card ID (card1)", min_value=1, value=13926, step=1)
 
         st.subheader("Card Info")
-        card2 = 330.0
-        card3 = 150.0
-        card4 = st.selectbox("Network", ["visa", "mastercard", "discover", "american express"])
-        card6 = st.selectbox("Type", ["debit", "credit"])
+        c2, c3 = st.columns(2)
+        with c2:
+            card2 = st.number_input("card2", value=330.0, step=1.0)
+            card3 = st.number_input("card3", value=150.0, step=1.0)
+        with c3:
+            card4 = st.selectbox("Network", ["visa", "mastercard", "discover", "american express"])
+            card6 = st.selectbox("Type", ["debit", "credit"])
 
     with col2:
         st.subheader("Address & Email")
