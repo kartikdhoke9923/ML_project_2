@@ -1,429 +1,184 @@
-# 🛡️ Real-Time Fraud Detection System
-### IEEE-CIS Dataset · LightGBM · FastAPI · Streamlit
+# IEEE-CIS Fraud Detection
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
-[![LightGBM](https://img.shields.io/badge/LightGBM-4.0+-yellow.svg)](https://lightgbm.readthedocs.io)
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+A real-time fraud detection system built on the [IEEE-CIS Fraud Detection dataset](https://www.kaggle.com/c/ieee-fraud-detection). Predicts whether a transaction is fraudulent using a LightGBM model deployed as a REST API with a Streamlit frontend.
 
-> A production-style fraud detection system trained on the [IEEE-CIS Fraud Detection dataset](https://www.kaggle.com/c/ieee-fraud-detection). Includes real-time inference via FastAPI, an interactive Streamlit dashboard, and O(1) feature computation using precomputed lookup tables.
+**Live Demo:** [ieee-cis-fraud-detection.streamlit.app](https://ieee-cis-fraud-detection.streamlit.app)  
+**API Docs:** [your-render-link.onrender.com/docs](https://your-render-link.onrender.com/docs)
 
 ---
 
-## 🔗 Live Demo
-
-| Service | URL |
-|---|---|
-| 🖥️ Streamlit Dashboard | `https://yourapp.streamlit.app` |
-| ⚡ FastAPI Backend | `https://fraud-api.railway.app` |
-| 📖 API Docs (Swagger) | `https://fraud-api.railway.app/docs` |
-
----
-
-## 📌 What This Project Does
-
-Most fraud detection projects stop at a Jupyter notebook with a good AUC score. This one goes further — it simulates what a real production fraud detection system looks like:
-
-- **Feature engineering** that mirrors how payment processors like Vesta actually compute fraud signals
-- **Precomputed lookup tables** so C/D features are computed in O(1) at inference, not O(n) DataFrame filtering
-- **REST API** that accepts raw transaction data and returns a fraud decision in milliseconds
-- **Interactive dashboard** for single transaction scoring and batch testing
-- **Deployment-ready** with Railway + Streamlit Cloud setup
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     TRAINING PHASE                       │
-│                                                          │
-│  IEEE-CIS CSV → Feature Engineering → LightGBM Pipeline │
-│                         ↓                               │
-│              precompute_history.py                       │
-│                         ↓                               │
-│   c_lookups.pkl   d_lookups.pkl   lgb_pipeline.pkl       │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                    INFERENCE PHASE                       │
-│                                                          │
-│  Raw Transaction → FeatureStore.build() → Model.predict  │
-│       (user input)    (O(1) lookups)     (LightGBM)      │
-│                         ↓                               │
-│            { decision, fraud_probability, risk_tier }    │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                  DEPLOYMENT LAYER                        │
-│                                                          │
-│   FastAPI (Railway)  ←→  Streamlit (Streamlit Cloud)    │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🔬 Feature Engineering
-
-Features are grouped by type and fraud signal:
-
-| Group | Features | Fraud Signal |
-|---|---|---|
-| **Time** | hour_of_day, is_night, is_weekend, is_business_hours | Transactions at 3AM are suspicious |
-| **Amount** | amt_log, is_round_amount, is_small_amount, is_large_amount | Card testing uses tiny amounts |
-| **Card behaviour** | amt_zscore_card, amt_ratio_card, card_txn_count | Transaction far outside card's normal range |
-| **Velocity** | is_rapid_txn, time_since_last_txn, card_is_first_txn | Multiple transactions in <10 minutes |
-| **Email** | email_domains_match, purchaser_email_risky, P_email_tld | Risky/anonymous email providers |
-| **Device** | is_mobile, device_seen_before | New device on a known card |
-| **Address** | addr_mismatch | Billing ≠ shipping address |
-| **C-columns** | C1–C14 (shared infrastructure counts) | Fraud rings share cards/addresses/emails |
-| **D-columns** | D1–D15 (time delta features) | Account age and activity gaps |
-| **M-columns** | M1–M9 (payment processor match flags) | Name/address mismatch at processor level |
-
-### Why C-Columns Are Not User Inputs
-
-C-columns (e.g. "how many cards share this billing address") are **computed server-side** from transaction history — not typed in by the user. In production, your system queries a transaction database. In this project, they are precomputed from training data using `precompute_history.py`.
-
-```
-User makes transaction
-        ↓
-Server receives: card_id, amount, email, device...
-        ↓
-FeatureStore queries precomputed dicts → C1: 3, D2: 14.5 days...
-        ↓
-Model scores assembled feature vector
-        ↓
-User sees: APPROVED ✅ or BLOCKED 🚫
-```
-
----
-
-## ⚡ Performance: O(1) Inference
-
-The naive approach — filtering a 590k-row DataFrame per request — costs ~20ms of pure Python per call and is not thread-safe.
-
-This project uses precomputed lookup dicts:
-
-```python
-# Naive approach (DO NOT use in production)
-card_hist = history[history["card1"] == card]        # O(n) scan
-c1_value  = card_hist["addr1"].nunique()             # O(k) compute
-
-# This project (O(1) lookup)
-c1_value = c_lookups["C1"].get(card, 1)             # ~0.01ms
-```
-
-| Approach | Latency per request | Thread-safe |
-|---|---|---|
-| DataFrame filtering | ~20ms | ❌ No |
-| Lookup dicts (this project) | ~0.01ms | ✅ Yes |
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 fraud-detection/
-│
-├── 📓 notebooks/
-│   └── training.py              # Full training pipeline
-│
-├── 🔧 backend/
-│   ├── main.py                  # FastAPI app (3 endpoints)
-│   ├── feature_store.py         # FeatureStore class (O(1) inference)
-│   ├── schema.py                # Pydantic input validation
-│   └── precompute_history.py    # One-time precomputation script
-│
-├── 🖥️ frontend/
-│   └── streamlit_app.py         # Streamlit dashboard
-│
-├── 📦 models/                   # Generated after running precompute
-│   ├── lgb_pipeline.pkl         # Trained LightGBM pipeline
-│   ├── c_lookups.pkl            # C1–C14 precomputed dicts
-│   ├── d_lookups.pkl            # D1–D15 timestamp anchors
-│   ├── feature_cols.pkl         # Ordered feature column list
-│   └── transaction_history.pkl  # Trimmed history (velocity features)
-│
-├── Procfile                     # Railway deployment config
-├── requirements.txt
-└── README.md
+├── notebook.ipynb           # EDA, feature engineering, model selection
+├── pipeline.py              # Training pipeline (final model)
+├── main.py                  # FastAPI backend
+├── streamlit_app.py         # Streamlit frontend
+├── feature_store.py         # Feature engineering + O(1) inference lookups
+├── precompute_history.py    # Precomputes C/D lookup tables from training data
+├── models/
+│   ├── lgb_pipeline.pkl     # Final trained LightGBM pipeline
+│   ├── c_lookups.pkl        # Precomputed C-column lookup dicts
+│   ├── d_lookups.pkl        # Precomputed D-column lookup dicts
+│   └── feature_cols.pkl     # Feature column order (must match training)
+├── render.yaml              # Render deployment config
+└── requirements.txt
 ```
 
 ---
 
-## 🚀 Local Setup
+## What I Built
 
-### 1. Clone and install
+### 1. Exploratory Data Analysis (`notebook.ipynb`)
+- Analyzed 590k transactions with 434 features
+- Identified class imbalance: 3.5% fraud vs 96.5% legitimate
+- Investigated V-columns (V1-V339), C-columns, D-columns, M-columns
+- Found transaction amount, card velocity, and email domain as key signals
 
-```bash
-git clone https://github.com/yourusername/fraud-detection.git
-cd fraud-detection
-pip install -r requirements.txt
+### 2. Feature Engineering
+Built interpretable features grouped into 8 categories:
+
+| Group | Features | Signal |
+|---|---|---|
+| Time | hour_of_day, is_night, is_weekend | Fraud happens at unusual hours |
+| Amount | amt_log, is_round_amount, is_large_amount | Unusual amounts signal fraud |
+| Card behaviour | amt_zscore_card, amt_ratio_card | Transaction deviates from card history |
+| Velocity | is_rapid_txn, card_txn_rank | Multiple transactions in short time |
+| Email | email_domains_match, purchaser_email_risky | Risky or mismatched email domains |
+| Device | is_mobile, device_seen_before | New device for a known card |
+| Address | addr_mismatch | Billing vs shipping mismatch |
+| C/D columns | C1-C14, D1-D15 | Shared infrastructure counts, account age |
+
+**V-columns (V1-V339) deliberately excluded** — proprietary Vesta features unavailable outside their system. See limitations section.
+
+### 3. Model Selection (`notebook.ipynb`)
+Compared four models on AUC-ROC:
+
+| Model | AUC |
+|---|---|
+| Logistic Regression | ~0.78 |
+| Random Forest | ~0.85 |
+| XGBoost | ~0.88 |
+| **LightGBM** | **~0.90** |
+
+Applied SMOTE (sampling_strategy=0.3) to handle class imbalance. LightGBM selected as final model.
+
+### 4. Inference Pipeline (`feature_store.py`)
+
+**Problem:** Naive approach filters 590k-row DataFrame per request — O(n), ~20ms per call.
+
+**Solution:** Precompute all C and D features into flat Python dicts at startup. Inference becomes O(1) dict lookups — ~0.01ms per call.
+
+```
+New transaction arrives
+        ↓
+feature_store.build(txn)        ← O(1) lookups, no DataFrame scanning
+        ↓
+lgb_pipeline.predict_proba()
+        ↓
+{ decision, fraud_probability, risk_tier }
 ```
 
-### 2. Download the dataset
+### 5. Deployment
 
-Download from [Kaggle](https://www.kaggle.com/c/ieee-fraud-detection/data) and place in:
-
-```
-ieee-fraud-detection/
-├── train_transaction.csv
-├── train_identity.csv
-├── test_transaction.csv
-└── test_identity.csv
-```
-
-### 3. Train the model
-
-```bash
-python training.py
-# Outputs: models/lgb_pipeline.pkl
-# Expect AUC ~0.92–0.94
-```
-
-### 4. Precompute feature lookup tables
-
-```bash
-python precompute_history.py
-# Outputs: c_lookups.pkl, d_lookups.pkl, feature_cols.pkl, transaction_history.pkl
-# Takes ~2 minutes on the full dataset
-```
-
-### 5. Start FastAPI
-
-```bash
-uvicorn main:app --reload
-# Running at http://localhost:8000
-# Swagger docs at http://localhost:8000/docs
-```
-
-### 6. Start Streamlit
-
-```bash
-streamlit run streamlit_app.py
-# Running at http://localhost:8501
-```
+| Component | Platform |
+|---|---|
+| FastAPI backend | Render |
+| Streamlit frontend | Streamlit Cloud |
 
 ---
 
-## 📡 API Reference
+## API Endpoints
 
-### `GET /health`
-Returns service status and model load info.
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Service status |
+| POST | `/predict` | Score a single transaction |
+| POST | `/predict/batch` | Score up to 100 transactions |
+| GET | `/history/stats` | Transaction history summary |
 
-```json
-{
-  "status": "ok",
-  "model_loaded": true,
-  "history_rows": 590540,
-  "loaded_at": "2025-01-15 10:32:01"
-}
+**Example request:**
+```bash
+curl -X POST "https://your-render-link.onrender.com/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "TransactionAmt": 9200,
+    "ProductCD": "H",
+    "card1": 888888,
+    "card4": "mastercard",
+    "card6": "credit",
+    "addr1": 10,
+    "addr2": 999,
+    "P_emaildomain": "anonymous.com",
+    "R_emaildomain": "guerrillamail.com",
+    "DeviceType": "mobile",
+    "DeviceInfo": "Android 4.0"
+  }'
 ```
 
----
-
-### `POST /predict`
-Score a single transaction.
-
-**Request body:**
+**Example response:**
 ```json
 {
-  "TransactionAmt": 117.50,
-  "ProductCD": "W",
-  "card1": 13926,
-  "card4": "visa",
-  "card6": "debit",
-  "P_emaildomain": "gmail.com",
-  "R_emaildomain": "gmail.com",
-  "DeviceType": "desktop",
-  "DeviceInfo": "Windows"
-}
-```
-
-**Response:**
-```json
-{
-  "decision": "APPROVE",
-  "fraud_probability": 0.0312,
-  "risk_tier": "LOW",
+  "decision": "BLOCK",
+  "fraud_probability": 0.76,
+  "risk_tier": "HIGH",
   "card_history": {
     "is_new_card": false,
-    "past_transactions": 47
+    "past_transactions": 142
   },
-  "latency_ms": 34.2
+  "latency_ms": 12.4
 }
 ```
 
 ---
 
-### `POST /predict/batch`
-Score up to 100 transactions at once.
-
-**Response:**
-```json
-{
-  "count": 3,
-  "approved": 2,
-  "blocked": 1,
-  "errors": 0,
-  "predictions": [...]
-}
-```
-
----
-
-### `GET /history/stats`
-Summary of the precomputed transaction history.
-
-```json
-{
-  "total_transactions": 590540,
-  "unique_cards": 57307,
-  "unique_addresses": 4174,
-  "unique_emails": 59,
-  "unique_devices": 4818,
-  "date_range_days": 182.5
-}
-```
-
----
-
-## ☁️ Deployment
-
-### FastAPI → Railway
+## How to Run Locally
 
 ```bash
-# 1. Push to GitHub
-git push origin main
+# Clone repo
+git clone https://github.com/kartikdhoke9923/ML_project_2
+cd ML_project_2
 
-# 2. Go to railway.app → New Project → Deploy from GitHub
-# 3. Railway reads Procfile automatically:
-#    web: uvicorn main:app --host 0.0.0.0 --port $PORT
-# 4. Get your URL: https://fraud-api.railway.app
-```
+# Install dependencies
+pip install -r requirements.txt
 
-### Streamlit → Streamlit Community Cloud
+# Precompute lookup tables (run once after training)
+python precompute_history.py
 
-```bash
-# 1. Go to share.streamlit.io
-# 2. Connect GitHub repo
-# 3. Set main file: streamlit_app.py
-# 4. Update API_BASE in streamlit_app.py:
-#    API_BASE = "https://fraud-api.railway.app"
-# 5. Deploy → get URL: https://yourapp.streamlit.app
-```
+# Start FastAPI backend
+uvicorn main:app --host 0.0.0.0 --port 8000
 
-### FastAPI → Modal (Production-Grade)
-
-[Modal](https://modal.com) is the recommended path for serious ML deployment — serverless, scales to zero, handles large model files cleanly.
-
-```python
-# modal_app.py
-import modal
-
-app = modal.App("fraud-detection")
-
-image = (
-    modal.Image.debian_slim()
-    .pip_install("fastapi", "uvicorn", "lightgbm",
-                 "scikit-learn", "imbalanced-learn",
-                 "pandas", "numpy", "joblib", "pydantic")
-)
-
-@app.function(
-    image=image,
-    mounts=[modal.Mount.from_local_dir("models", remote_path="/app/models")],
-    keep_warm=1   # keeps one instance warm to avoid cold starts
-)
-@modal.asgi_app()
-def fastapi_app():
-    import sys
-    sys.path.insert(0, "/app")
-    from main import app as fastapi_app
-    return fastapi_app
-```
-
-```bash
-modal deploy modal_app.py
-# Live at: https://yourname--fraud-detection.modal.run
+# In a separate terminal, start Streamlit
+streamlit run streamlit_app.py
 ```
 
 ---
 
-## 📊 Model Performance
+## Known Limitations
 
-| Metric | Value |
-|---|---|
-| ROC-AUC | ~0.93 |
-| Model | LightGBM (GBDT) |
-| Class imbalance handling | SMOTE (sampling_strategy=0.3) + class_weight="balanced" |
-| Train/Test split | 80/20 stratified |
-| Features used | ~65 engineered features |
-| V-columns (V1–V339) | ❌ Excluded — undocumented, not deployable |
+**1. V-columns excluded**
+V1-V339 are the strongest predictors in this dataset but are proprietary Vesta features unavailable at inference time outside their payment system. Excluding them reduces recall but makes the model actually deployable. A production integration would require a Vesta API to access these features.
 
-### Why LightGBM
+**2. Cold start problem**
+New cards with no transaction history score lower because C and D features default to base values. This is a known challenge in production fraud detection. A production fix would add a rule-based layer flagging all transactions above a threshold from new cards with risky email domains.
 
-- Handles missing values natively (no imputation needed for tree splits)
-- Fast training on tabular data with high cardinality categoricals
-- Top-performing model class on this dataset across public Kaggle solutions
-- Works well with the class imbalance present in fraud data (~3.5% fraud rate)
+**3. Render free tier cold start**
+The API spins down after 15 minutes of inactivity. First request after inactivity takes 30-60 seconds. Normal behavior on the free tier.
 
 ---
 
-## 🧠 Key Design Decisions
+## Dataset
 
-**1. Excluded V-columns (V1–V339)**
-These 339 Vesta-proprietary columns are undocumented and uninterpretable. In a real system, you would not have access to them — they are internal Vesta signals. Excluding them makes the model actually deployable.
+[IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection) — provided by Vesta Corporation via Kaggle.
 
-**2. Precomputed lookups, not runtime DataFrame filtering**
-At inference time, filtering 590k rows per request is O(n). Every C-column and D-column value is instead served from a flat Python dict in O(1). This is how production feature stores work.
-
-**3. M-columns come from the payment processor, not the user**
-M1–M9 are match flags (e.g. "does the name on the card match the billing name?"). In production, Vesta or your payment processor provides these automatically. They are not user-input fields.
-
-**4. SMOTE on the pipeline, not on raw data**
-SMOTE is applied inside the training pipeline using `imblearn.Pipeline`, which ensures it only runs during `fit()` and never during `predict()`. Applying SMOTE to raw data before the train/test split is a common data leakage mistake.
+- 590,540 training transactions
+- 434 features
+- 3.5% fraud rate
+- Features intentionally anonymized by Vesta
 
 ---
 
-## 🔮 What I Would Add With More Time
+## Tech Stack
 
-- [ ] SHAP explainability — per-transaction feature contribution breakdown
-- [ ] Model retraining pipeline — periodic refit as new fraud patterns emerge
-- [ ] Threshold tuning — adjust decision boundary based on cost of false positives vs false negatives
-- [ ] A/B testing framework — compare model versions in production
-- [ ] Proper feature store (Feast or Tecton) replacing the manual pkl dicts
-- [ ] Redis cache for velocity features (replaces in-memory dict for multi-instance deployments)
-
----
-
-## 📦 Requirements
-
-```
-fastapi
-uvicorn
-streamlit
-lightgbm
-scikit-learn>=1.3
-imbalanced-learn
-pandas
-numpy
-joblib
-requests
-pydantic>=2.0
-```
-
----
-
-## 📄 License
-
-MIT License — use freely, attribution appreciated.
-
----
-
-## 🙋 About
-
-Built as a portfolio project to demonstrate ML engineering beyond notebook-level work — covering feature engineering, production inference patterns, REST API design, and cloud deployment.
-
-**Dataset:** [IEEE-CIS Fraud Detection — Kaggle](https://www.kaggle.com/c/ieee-fraud-detection)
+`Python` `LightGBM` `scikit-learn` `imbalanced-learn` `FastAPI` `Streamlit` `Pydantic` `joblib` `pandas` `numpy`
