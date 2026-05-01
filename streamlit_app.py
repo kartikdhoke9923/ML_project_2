@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 
 # ── Config ────────────────────────────────────────────────────────────────────
-API_BASE = "http://localhost:8000"
+API_BASE = "https://fraud-detection-api-ry7g.onrender.com/"
 
 st.set_page_config(
     page_title="Fraud Detection",
