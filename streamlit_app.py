@@ -144,8 +144,8 @@ if page == "Single Prediction":
                 prob_pct = round(result["fraud_probability"] * 100, 2)
                 st.metric("Fraud Probability", f"{prob_pct}%")
             with r3:
-                tier = result["risk"]
-                st.metric("risk", f"{risk_color(tier)} {tier}")
+                tier = result["risk_tier"]
+                st.metric("risk_tier", f"{risk_color(tier)} {tier}")
             
 
             # Probability bar
@@ -216,7 +216,7 @@ elif page == "Batch Test":
                             "#":           i + 1,
                             "Decision":    pred["decision"],
                             "Fraud Prob":  f"{round(pred['fraud_probability']*100,1)}%",
-                            "Risk":        pred["risk_tier"],
+                            "Risk Tier":        pred["risk_tier"],
                             "Latency ms": round(pred["latency_ms"], 1),
                         })
 
@@ -230,7 +230,7 @@ elif page == "Batch Test":
                         return ""
 
                     st.dataframe(
-                        df.style.applymap(color_decision, subset=["Decision"]),
+                        df.style.map(color_decision, subset=["Decision"]),
                         use_container_width=True
                     )
         except json.JSONDecodeError as e:
