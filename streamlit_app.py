@@ -76,14 +76,14 @@ if page == "Single Prediction":
 
     with col1:
         st.subheader("Transaction Details")
-        amt     = st.number_input("Transaction Amount ($)", min_value=0.01, value=117.50, step=0.01)
+        amt     = st.number_input("Transaction Amount ($)", min_value=0.01, value=9200.0, step=0.01)
         product = st.selectbox("Product Code", ["W", "H", "C", "S", "R"], index=0)
         card1   = st.number_input("Card ID (card1)", min_value=1, value=13926, step=1)
 
         st.subheader("Card Info")
         c2, c3 = st.columns(2)
         with c2:
-            card2 = st.number_input("card2", value=330.0, step=1.0)
+            card2 = st.number_input("card2", value=100.0, step=1.0)
             card3 = st.number_input("card3", value=150.0, step=1.0)
         with c3:
             card4 = st.selectbox("Network", ["visa", "mastercard", "discover", "american express"])
@@ -91,20 +91,20 @@ if page == "Single Prediction":
 
     with col2:
         st.subheader("Address & Email")
-        a1 = st.number_input("addr1 (billing zip)", value=299.0, step=1.0)
-        a2 = st.number_input("addr2 (country code)", value=87.0, step=1.0)
-        p_email = st.text_input("Purchaser email domain", value="gmail.com")
-        r_email = st.text_input("Recipient email domain", value="gmail.com")
+        a1 = st.number_input("addr1 (billing zip)", value=10.0, step=1.0)
+        a2 = st.number_input("addr2 (country code)", value=999.0, step=1.0)
+        p_email = st.text_input("Purchaser email domain", value="anonymous.com")
+        r_email = st.text_input("Recipient email domain", value="guerrillamail.com")
 
         st.subheader("Device")
         dev_type = st.selectbox("Device Type", ["desktop", "mobile", "unknown"])
-        dev_info = st.text_input("Device Info", value="Windows")
+        dev_info = st.text_input("Device Info", value="Android 4.0")
 
     with st.expander("M-columns (match flags from payment processor)"):
         mc = st.columns(3)
         m_vals = {}
         options = ["T", "F", "M0", "M1", "M2", "unknown"]
-        defaults = ["T", "T", "T", "M2", "T", "T", "unknown", "unknown", "unknown"]
+        defaults = ["F", "F", "F", "M0", "F", "F", "unknown", "unknown", "unknown"]
         for i in range(1, 10):
             col_idx = (i - 1) % 3
             with mc[col_idx]:
