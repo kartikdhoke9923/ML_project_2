@@ -4,6 +4,7 @@ streamlit_app.py — Fraud Detection Dashboard
 """
 
 # adding code for waking up api automatically when streamlit app starts, since render.com free dynos sleep after inactivity
+API_BASE = "https://fraud-detection-api-ry7g.onrender.com/"
 import threading
 import requests
 import time
@@ -27,7 +28,7 @@ import time
 from datetime import datetime
 
 # ── Config ────────────────────────────────────────────────────────────────────
-API_BASE = "https://fraud-detection-api-ry7g.onrender.com/"
+
 
 st.set_page_config(
     page_title="Fraud Detection",
