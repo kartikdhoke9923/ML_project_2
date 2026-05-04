@@ -1,9 +1,23 @@
 """
 streamlit_app.py — Fraud Detection Dashboard
-─────────────────────────────────────────────
-Run:  streamlit run streamlit_app.py
-      (FastAPI must be running on localhost:8000)
+
 """
+
+# adding code for waking up api automatically when streamlit app starts, since render.com free dynos sleep after inactivity
+import threading
+import requests
+import time
+
+def keep_alive():
+    while True:
+        try:
+            requests.get(f"{API_BASE}/health", timeout=5)
+        except:
+            pass
+        time.sleep(840)  # ping every 14 minutes
+
+# Start in background when Streamlit loads
+threading.Thread(target=keep_alive, daemon=True).start()
 
 import streamlit as st
 import requests
@@ -237,9 +251,9 @@ elif page == "Batch Test":
             st.error(f"JSON parse error: {e}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+
 # PAGE 3 — History Stats
-# ══════════════════════════════════════════════════════════════════════════════
+
 elif page == "History Stats":
     st.title("Transaction History Stats")
 
