@@ -32,7 +32,7 @@ from datetime import datetime
 
 st.set_page_config(
     page_title="Fraud Detection",
-    page_icon="🛡️",
+    page_icon="",
     layout="wide",
 )
 
@@ -66,7 +66,7 @@ def decision_color(decision: str) -> str:
 
 # ── Sidebar: API status ───────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🛡️ Fraud Detector")
+    st.title("Fraud Detector")
     st.caption("IEEE-CIS LightGBM Model")
 
     health, err = api_get("/health")
@@ -128,7 +128,7 @@ if page == "Single Prediction":
                                                 if defaults[i-1] in options else 0)
 
     # ── Submit ────────────────────────────────────────────────────────────────
-    if st.button("🔍 Check Transaction", type="primary", use_container_width=True):
+    if st.button(" Check Transaction", type="primary", use_container_width=True):
         payload = {
             "TransactionAmt": amt,
             "ProductCD": product,
@@ -206,7 +206,7 @@ elif page == "Batch Test":
 
     raw = st.text_area("Transactions (JSON array)", value=json.dumps(sample, indent=2), height=300)
 
-    if st.button("🚀 Score Batch", type="primary", use_container_width=True):
+    if st.button("Score Batch", type="primary", use_container_width=True):
         try:
             transactions = json.loads(raw)
             if not isinstance(transactions, list):
